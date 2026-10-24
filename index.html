@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中学地理 5択クイズ（特訓編）</title>
+  <!-- 派手な演出用 ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #2e7d32;
+      --hover-color: #1b5e20;
+      --bg-color: #f1f8e9;
+      --text-color: #263238;
+      --card-bg: #ffffff;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    #app {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 620px;
+      margin: 20px;
+      padding: 30px;
+      border-radius: 14px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      box-sizing: border-box;
+      position: relative;
+    }
+    h1, h2 {
+      text-align: center;
+      color: var(--primary-color);
+    }
+    .hidden {
+      display: none !important;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      background-color: var(--card-bg);
+      border: 2px solid var(--primary-color);
+      color: var(--primary-color);
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.4;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .btn:hover {
+      background-color: var(--primary-color);
+      color: #fff;
+    }
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: #fff;
+      text-align: center;
+      font-weight: bold;
+      border: none;
+      font-size: 16px;
+    }
+    .btn-primary:hover {
+      background-color: var(--hover-color);
+    }
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.75;
+    }
+    .correct-btn {
+      background-color: #2e7d32 !important;
+      color: white !important;
+      border-color: #2e7d32 !important;
+    }
+    .wrong-btn {
+      background-color: #d32f2f !important;
+      color: white !important;
+      border-color: #d32f2f !important;
+    }
+    #progress {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #558b2f;
+    }
+    #question-text {
+      font-size: 18px;
+      line-height: 1.6;
+      margin-bottom: 25px;
+      font-weight: 500;
+    }
+    #explanation-box {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #e8f5e9;
+      border-left: 5px solid var(--primary-color);
+      border-radius: 4px;
+    }
+    .score-display {
+      font-size: 24px;
+      text-align: center;
+      margin: 20px 0;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+    .high-score {
+      text-align: center;
+      font-size: 14px;
+      color: #78909c;
+      margin-top: 10px;
+    }
+
+    /* 満点専用スタイル */
+    .perfect-banner {
+      animation: popIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .perfect-badge {
+      display: inline-block;
+      font-size: 18px;
+      font-weight: bold;
+      color: #b78103;
+      background: linear-gradient(135deg, #fff3b0 0%, #ffd700 50%, #ffae00 100%);
+      padding: 8px 24px;
+      border-radius: 30px;
+      box-shadow: 0 4px 15px rgba(255, 174, 0, 0.4);
+      border: 2px solid #fff;
+      animation: pulse 1.8s infinite;
+    }
+    .perfect-title {
+      font-size: 30px;
+      color: #e65100;
+      margin: 15px 0 5px 0;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- スタート画面 -->
+    <div id="start-screen">
+      <h1>🧭 中学地理 5択クイズ</h1>
+      <p style="text-align: center; line-height: 1.6;">
+        全100問の特訓バンクからランダムに10問出題されます<br>
+        問われ方や選択肢が刷新された類題バージョンです
+      </p>
+      <div class="high-score" id="high-score-display">過去の最高得点: -- 点</div>
+      <button class="btn btn-primary" onclick="startQuiz()" style="margin-top: 30px;">クイズを始める</button>
+    </div>
+
+    <!-- クイズ画面 -->
+    <div id="quiz-screen" class="hidden">
+      <div id="progress">問題 1 / 10</div>
+      <div id="question-text">ここに問題文が表示されます。</div>
+      <div id="options-container"></div>
+      
+      <!-- 解説エリア -->
+      <div id="explanation-box" class="hidden">
+        <h3 id="result-title" style="margin-top: 0;"></h3>
+        <p id="explanation-text"></p>
+        <button class="btn btn-primary" onclick="nextQuestion()" style="margin-top: 15px;">次の問題へ</button>
+      </div>
+    </div>
+
+    <!-- 結果画面 -->
+    <div id="result-screen" class="hidden">
+      <div id="perfect-celebration" class="perfect-banner hidden">
+        <div class="perfect-badge">🏆 地理完全制覇・マスター達成 🏆</div>
+        <h2 class="perfect-title">全問正解！素晴らしい！</h2>
+      </div>
+
+      <h1 id="result-heading">結果発表</h1>
+      <div class="score-display" id="final-score"></div>
+      <div class="high-score" id="new-high-score-msg" class="hidden" style="color: #d32f2f; font-weight: bold;"></div>
+      <button class="btn btn-primary" onclick="resetQuiz()" style="margin-top: 30px;">トップに戻る</button>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. 刷新版 類題100問データ
+    // ==========================================
+    const allQuizData = [
+  {
+    "id": 1,
+    "unit": "世界の姿",
+    "question": "イギリスのロンドン郊外を通る「本初子午線」が表している基準として正しいものを選びなさい。",
+    "options": ["緯度0度", "経度0度", "東経90度", "北緯90度", "経度180度"],
+    "answerIndex": 1,
+    "explanation": "経度の基準となる経度0度の線を本初子午線といい、旧グリニッジ天文台を通っています。"
+  },
+  {
+    "id": 2,
+    "unit": "世界の姿",
+    "question": "世界にある6つの大陸のうち、陸地面積がもっとも小さい大陸はどれか選びなさい。",
+    "options": ["南アメリカ大陸", "南極大陸", "ヨーロッパ大陸", "オーストラリア大陸", "北アメリカ大陸"],
+    "answerIndex": 3,
+    "explanation": "最大の大陸はユーラシア大陸で、最も面積が小さい大陸はオーストラリア大陸です。"
+  },
+  {
+    "id": 3,
+    "unit": "世界の姿",
+    "question": "地球全体の表面積における「陸地」が占める割合として、もっとも近いものを選びなさい。",
+    "options": ["約10%", "約30%", "約50%", "約70%", "約90%"],
+    "answerIndex": 1,
+    "explanation": "地球の表面積は海が約7割（71%）、陸地が約3割（29%）の割合になっています。"
+  },
+  {
+    "id": 4,
+    "unit": "世界の姿",
+    "question": "いわゆる「三大洋」に該当する海洋の正しい組み合わせを選びなさい。",
+    "options": [
+      "太平洋・大西洋・北極海",
+      "大西洋・インド洋・地中海",
+      "太平洋・大西洋・インド洋",
+      "太平洋・インド洋・南極海",
+      "大西洋・日本海・太平洋"
+    ],
+    "answerIndex": 2,
+    "explanation": "三大洋とは、太平洋、大西洋、インド洋の3つの広大な海洋のことです。"
+  },
+  {
+    "id": 5,
+    "unit": "世界の姿",
+    "question": "北半球と南半球の境界となっている「緯度0度」の線は何と呼ばれるか選びなさい。",
+    "options": ["本初子午線", "赤道", "白夜線", "日付変更線", "北極圏"],
+    "answerIndex": 1,
+    "explanation": "緯度0度の基準線は赤道です。経度0度の基準線が本初子午線です。"
+  },
+  {
+    "id": 6,
+    "unit": "世界の姿",
+    "question": "メルカトル図法の地図において、緯度が高くなるほどどのようなゆがみが生じるか選びなさい。",
+    "options": [
+      "面積が実際より極端に大きく描かれる",
+      "距離が全く測れなくなる",
+      "角度が正しく保たれなくなる",
+      "面積が実際より小さく縮んで描かれる",
+      "北極や南極が中心に丸く表示される"
+    ],
+    "answerIndex": 0,
+    "explanation": "メルカトル図法は角度が正しい反面、高緯度になるほど面積が引き伸ばされ、グリーンランドなどが極端に巨大に描かれます。"
+  },
+  {
+    "id": 7,
+    "unit": "世界の姿",
+    "question": "図の中心から任意の地点までの「距離」と「方位」が正しく表され、中心からの最短ルートが直線で引ける図法を選びなさい。",
+    "options": ["正距方位図法", "メルカトル図法", "モルワイデ図法", "サンソン図法", "ミラー図法"],
+    "answerIndex": 0,
+    "explanation": "正距方位図法は中心からの最短コース（大圏航路）が直線で示せるため、航空図に活用されます。"
+  },
+  {
+    "id": 8,
+    "unit": "時差",
+    "question": "ある2地点の間に「3時間」の時差がある場合、その地点間の経度差は何度になるか選びなさい。",
+    "options": ["15度", "30度", "45度", "60度", "90度"],
+    "answerIndex": 2,
+    "explanation": "地球は1時間で15度自転するため、15度×3時間＝45度の経度差が生じます。"
+  },
+  {
+    "id": 9,
+    "unit": "時差",
+    "question": "日本の時刻を決める「日本標準時子午線」が定められている経度を選びなさい。",
+    "options": ["西経135度", "東経135度", "東経140度", "東経15度", "経度0度"],
+    "answerIndex": 1,
+    "explanation": "日本の標準時子午線は「東経135度」に定められています。"
+  },
+  {
+    "id": 10,
+    "unit": "時差",
+    "question": "東経135度の子午線が通る兵庫県明石市に設置されている有名な施設はどれか選びなさい。",
+    "options": ["国立天文台", "気象庁本庁", "市立天文科学館", "国際標準時センター", "海上保安庁水路部"],
+    "answerIndex": 2,
+    "explanation": "明石市には東経135度子午線の真上に時計塔を持つ「明石市立天文科学館」が建てられています。"
+  },
+  {
+    "id": 11,
+    "unit": "時差",
+    "question": "イギリス（経度0度）が午前0時のとき、日本（東経135度）は何時になるか選びなさい。",
+    "options": ["同日の午前9時", "前日の午後3時", "同日の午後9時", "翌日の午前3時", "同日の正午"],
+    "answerIndex": 0,
+    "explanation": "時差は 135÷15＝9時間。日本の方が東にあるため時間が進んでおり、同日の午前9時になります。"
+  },
+  {
+    "id": 12,
+    "unit": "時差",
+    "question": "日付変更線を「日本側（西）からアメリカ側（東）」へ越えて進むときの日付の調整方法として正しいものを選びなさい。",
+    "options": [
+      "日付を1日進める",
+      "日付を1日遅らせる（戻す）",
+      "時計を12時間進める",
+      "時計を12時間遅らせる",
+      "日付の変更は行わない"
+    ],
+    "answerIndex": 1,
+    "explanation": "日付変更線を西から東へ通過するときは「同じ日をもう一度繰り返す」形になるため、日付を1日遅らせます。"
+  },
+  {
+    "id": 13,
+    "unit": "世界の気候",
+    "question": "熱帯の中で、一年中雨が多い「熱帯雨林気候」と異なり、明瞭な雨季と乾季が存在する気候区を選びなさい。",
+    "options": ["砂漠気候", "地中海性気候", "サバナ気候", "ステップ気候", "ツンドラ気候"],
+    "answerIndex": 2,
+    "explanation": "サバナ気候は雨季と乾季が交互に訪れ、背の高い草の中にバオバブやアカシアなどの樹木が点在します。"
+  },
+  {
+    "id": 14,
+    "unit": "世界の気候",
+    "question": "乾燥帯のうち、草がほとんど生えない砂漠気候に対して、わずかに雨が降り短草草原が広がる気候区を選びなさい。",
+    "options": ["ステップ気候", "ツンドラ気候", "高山気候", "西岸海洋性気候", "サバナ気候"],
+    "answerIndex": 0,
+    "explanation": "ステップ気候は降水量が少なく短い草（ステップ）が生えるため、羊や馬などの遊牧が行われます。"
+  },
+  {
+    "id": 15,
+    "unit": "世界の気候",
+    "question": "日本の大部分が属する「温暖湿潤気候（Cfa）」の降水の特徴としてもっとも適切なものを選びなさい。",
+    "options": [
+      "夏は極端に乾燥し、冬に大雪が降る",
+      "一年を通じてまとまった降水量がある",
+      "年中雨がほとんど降らない",
+      "冬だけに降水が集中する",
+      "春から初夏にかけてのみスコールが降る"
+    ],
+    "answerIndex": 1,
+    "explanation": "温暖湿潤気候は年間を通じて降水量が多く、夏は高温多湿、冬は冷え込み四季の変化が明瞭です。"
+  },
+  {
+    "id": 16,
+    "unit": "世界の気候",
+    "question": "ロンドンやパリなどヨーロッパ西岸の気候が、高緯度でありながら冬も比較的穏やかな要因の組み合わせを選びなさい。",
+    "options": [
+      "親潮（寒流）と季節風",
+      "暖流（北大西洋海流）と偏西風",
+      "寒流（ラブラドル海流）と貿易風",
+      "モンスーンと高気圧",
+      "偏西風と内陸性気候"
+    ],
+    "answerIndex": 1,
+    "explanation": "暖かい北大西洋海流の上を偏西風が吹き抜けて暖気を内陸へ運ぶため、緯度の割に冬も温暖です。"
+  },
+  {
+    "id": 17,
+    "unit": "世界の気候",
+    "question": "イタリアなど地中海沿岸に見られる「夏に晴天が続き乾燥し、冬に比較的雨が降る」気候区を選びなさい。",
+    "options": ["温暖湿潤気候", "西岸海洋性気候", "サバナ気候", "地中海性気候", "ステップ気候"],
+    "answerIndex": 3,
+    "explanation": "地中海性気候は夏の乾燥に耐えるオリーブ、柑橘類、ぶどうの栽培などが特徴的です。"
+  },
+  {
+    "id": 18,
+    "unit": "世界の気候",
+    "question": "シベリアやカナダなどの冷帯（亜寒帯）地域に見られる、マツやトウヒなどの針葉樹林帯の呼び名を選びなさい。",
+    "options": ["セルバ", "パンパ", "タイガ", "ステップ", "ツンドラ"],
+    "answerIndex": 2,
+    "explanation": "冷帯に広がる広大な針葉樹林帯を「タイガ」と呼びます。"
+  },
+  {
+    "id": 19,
+    "unit": "世界の気候",
+    "question": "寒帯のうち、極めて短い夏にのみ雪氷が解けて地衣類やコケが生える気候区を選びなさい。",
+    "options": ["氷雪気候", "ツンドラ気候", "ステップ気候", "高山気候", "冷帯冬季少雨気候"],
+    "answerIndex": 1,
+    "explanation": "ツンドラ気候は樹木が生育できず、短い夏に表土がわずかに融けてコケ類が生えます。"
+  },
+  {
+    "id": 20,
+    "unit": "世界の気候",
+    "question": "低緯度（熱帯付近）に位置しながらも、高い標高によって一年中春のような涼しい気候が見られる地域特有の気候を選びなさい。",
+    "options": ["地中海性気候", "西岸海洋性気候", "高山気候", "ステップ気候", "冷帯湿潤気候"],
+    "answerIndex": 2,
+    "explanation": "アンデス山脈の都市（キトやラパスなど）では、標高の高さにより年中しのぎやすい高山気候となります。"
+  },
+  {
+    "id": 21,
+    "unit": "世界の生活と宗教・文化",
+    "question": "東南アジアなどの蒸し暑い地域で、地面からの湿気や害獣を避けるために建てられる伝統的な住居の構造を選びなさい。",
+    "options": ["日干しれんが造り", "イグルー", "高床式住居", "ゲル", "穴居住宅"],
+    "answerIndex": 2,
+    "explanation": "風通しを良くして湿気や熱を逃がし、大雨による浸水や虫害を防ぐために高床式が採用されます。"
+  },
+  {
+    "id": 22,
+    "unit": "世界の生活と宗教・文化",
+    "question": "シベリアなどで住宅を建てる際、暖房の熱で地盤が緩んで家が傾くのを防ぐために工夫される対象となる土壌層を選びなさい。",
+    "options": ["黒土（チェルノーゼム）", "赤黄色土", "永久凍土", "火山灰層", "泥炭地"],
+    "answerIndex": 2,
+    "explanation": "永久凍土が暖房熱で解けると家が傾くため、床下を浮かせて隙間を作ったり深い杭を打ちます。"
+  },
+  {
+    "id": 23,
+    "unit": "世界の生活と宗教・文化",
+    "question": "カナダやグリーンランドなどの極北地域で、アザラシ猟などを営んできた先住民族を選びなさい。",
+    "options": ["マオリ", "アボリジニ", "イヌイット", "インディオ", "アイヌ"],
+    "answerIndex": 2,
+    "explanation": "北極圏沿岸に暮らす先住民族はイヌイットと呼ばれています。"
+  },
+  {
+    "id": 24,
+    "unit": "世界の生活と宗教・文化",
+    "question": "砂漠の中で湧水や地下水によって樹木が育ち、ナツメヤシなどの栽培拠点となる場所を選びなさい。",
+    "options": ["カルデラ", "オアシス", "ワジ（枯れ川）", "砂丘", "塩湖"],
+    "answerIndex": 1,
+    "explanation": "砂漠の中で淡水が得られ集落や農地が営まれる場所をオアシスといいます。"
+  },
+  {
+    "id": 25,
+    "unit": "世界の生活と宗教・文化",
+    "question": "木材資源に乏しい西アジアなどの乾燥地域で、厚い壁を作って外の熱気を遮断するために使われる建築材料を選びなさい。",
+    "options": ["木製パネル", "コンクリートブロック", "日干しれんが", "氷のブロック", "竹とワラ"],
+    "answerIndex": 2,
+    "explanation": "泥や粘土を型に入れて太陽光で乾かした「日干しれんが」が古くから用いられています。"
+  },
+  {
+    "id": 26,
+    "unit": "世界の生活と宗教・文化",
+    "question": "南アメリカのアンデス高地で、寒冷な高山環境に適応し荷物運搬や毛の採取用に飼育されている家畜を選びなさい。",
+    "options": ["ラクダ", "ヤク", "リャマ・アルパカ", "トナカイ", "スイギュウ"],
+    "answerIndex": 2,
+    "explanation": "アンデス山脈では古くからリャマ（運搬用・毛）やアルパカ（高級な毛）が家畜化されています。"
+  },
+  {
+    "id": 27,
+    "unit": "世界の生活と宗教・文化",
+    "question": "アンデス山脈の高地で暮らす人々が着用する、防寒性に優れ頭からすっぽりかぶる毛織りの衣服を選びなさい。",
+    "options": ["サリー", "ポンチョ", "アオザイ", "チャドル", "キルト"],
+    "answerIndex": 1,
+    "explanation": "一枚の毛織物の中心に穴を開けたポンチョは、風を通さず保温性に優れています。"
+  },
+  {
+    "id": 28,
+    "unit": "世界の生活と宗教・文化",
+    "question": "聖書を経典とし、信徒数が世界でもっとも多い宗教を選びなさい。",
+    "options": ["イスラム教", "仏教", "キリスト教", "ヒンドゥー教", "ユダヤ教"],
+    "answerIndex": 2,
+    "explanation": "キリスト教はヨーロッパや南北アメリカを中心に世界最大の信徒数を抱えています。"
+  },
+  {
+    "id": 29,
+    "unit": "世界の生活と宗教・文化",
+    "question": "唯一神アッラーの啓示がアラビア語で記されている、イスラム教の最高聖典を選びなさい。",
+    "options": ["新約聖書", "コーラン（クルアーン）", "律法（トーラー）", "ヴェーダ", "法華経"],
+    "answerIndex": 1,
+    "explanation": "イスラム教徒にとって神の言葉そのものとされる聖典はコーラン（クルアーン）です。"
+  },
+  {
+    "id": 30,
+    "unit": "世界の生活と宗教・文化",
+    "question": "イスラム教徒（ムスリム）が宗教上の戒律により口にすることを厳格に禁止されている肉類を選びなさい。",
+    "options": ["牛肉", "鶏肉", "羊肉", "豚肉", "山羊肉"],
+    "answerIndex": 3,
+    "explanation": "イスラム教では豚を不浄な生き物と定めており、豚肉や豚由来の成分を含む食品を禁じています。"
+  },
+  {
+    "id": 31,
+    "unit": "世界の生活と宗教・文化",
+    "question": "インド人口の大半を占めるヒンドゥー教において、神聖な動物として肉食が避けられる動物を選びなさい。",
+    "options": ["馬", "羊", "牛", "豚", "鶏"],
+    "answerIndex": 2,
+    "explanation": "ヒンドゥー教では牛（特にコブウシ）はシヴァ神の乗り物など神聖視され、牛肉を食べません。"
+  },
+  {
+    "id": 32,
+    "unit": "世界の生活と宗教・文化",
+    "question": "釈迦（シャカ）によって開かれ、アジア各地に広まった仏教が発祥した地域（国）を選びなさい。",
+    "options": ["中国", "インド", "タイ", "日本", "イスラエル"],
+    "answerIndex": 1,
+    "explanation": "仏教は紀元前5世紀頃、古代インドで釈迦によって説かれました。"
+  },
+  {
+    "id": 33,
+    "unit": "世界の生活と宗教・文化",
+    "question": "ユダヤ教、キリスト教、イスラム教のすべてにおいて重要な聖地と位置づけられている中東の都市を選びなさい。",
+    "options": ["メッカ", "メディナ", "カイロ", "エルサレム", "バグダッド"],
+    "answerIndex": 3,
+    "explanation": "エルサレムには「嘆きの壁」「聖墳墓教会」「岩のドーム」が隣接し、三大宗教共通の聖地です。"
+  },
+  {
+    "id": 34,
+    "unit": "世界の生活と宗教・文化",
+    "question": "インドをはじめとする南アジアの女性が着用する、長い一枚の布を優雅に巻きつける民族衣装を選びなさい。",
+    "options": ["サリー", "アオザイ", "チマチョゴリ", "キルト", "ヒジャブ"],
+    "answerIndex": 0,
+    "explanation": "インドの伝統衣装「サリー」は約5〜6メートルの布を体に巻き付けて着用します。"
+  },
+  {
+    "id": 35,
+    "unit": "世界の生活と宗教・文化",
+    "question": "モンスーン（季節風）がもたらす豊富な雨を利用して、東アジアや東南アジアで集約的に栽培される主食穀物を選びなさい。",
+    "options": ["小麦", "ライ麦", "とうもろこし", "稲（米）", "大麦"],
+    "answerIndex": 3,
+    "explanation": "米（稲）は生育期に高い気温と大量の水を必要とするため、モンスーンアジアが主産地です。"
+  },
+  {
+    "id": 36,
+    "unit": "世界の生活と宗教・文化",
+    "question": "モンゴルなどで遊牧生活を送る人々が暮らす、木組みとフェルトで作られた解体・移動が容易な天幕住居を選びなさい。",
+    "options": ["イグルー", "ゲル", "高床倉庫", "ピットハウス", "ファベーラ"],
+    "answerIndex": 1,
+    "explanation": "モンゴル語で「ゲル」（中国語ではパオ）と呼ばれる移動式住居です。"
+  },
+  {
+    "id": 37,
+    "unit": "世界の生活と宗教・文化",
+    "question": "イスラム教圏の女性が慎み深さを守るため、頭髪や首を覆うために身につけるスカーフ状の布を選びなさい。",
+    "options": ["ポンチョ", "サリー", "ヒジャブ", "ターバン", "マント"],
+    "answerIndex": 2,
+    "explanation": "イスラム教徒の女性が髪を隠すための布を「ヒジャブ」と呼びます。"
+  },
+  {
+    "id": 38,
+    "unit": "世界の生活と宗教・文化",
+    "question": "キリスト教徒が日曜日などに礼拝を行い、神への祈りを捧げる宗教施設を選びなさい。",
+    "options": ["教会堂（教会）", "モスク", "シナゴーグ", "寺院", "神社"],
+    "answerIndex": 0,
+    "explanation": "キリスト教の祈りの場は教会（チャーチ）です。"
+  },
+  {
+    "id": 39,
+    "unit": "世界の生活と宗教・文化",
+    "question": "イスラム教徒が集まって礼拝を行う、尖塔（ミナレット）やドーム屋根が特徴的な建築物を選びなさい。",
+    "options": ["教会", "モスク", "パゴダ", "ピラミッド", "大聖堂"],
+    "answerIndex": 1,
+    "explanation": "イスラム教の礼拝所は「モスク（アラビア語でマスジド）」と呼ばれます。"
+  },
+  {
+    "id": 40,
+    "unit": "世界の生活と宗教・文化",
+    "question": "比較的降水量が少ないヨーロッパ内陸部や北アメリカの平原で、パンなどの主食原料として広く作付けされる穀物を選びなさい。",
+    "options": ["米", "小麦", "キャッサバ", "サトイモ", "ソバ"],
+    "answerIndex": 1,
+    "explanation": "小麦は米よりも冷涼かつ少雨の環境でも生育できるため、欧米の主食作物となっています。"
+  },
+  {
+    "id": 41,
+    "unit": "アジア州",
+    "question": "中国が改革開放政策のもと、外国企業の進出を促すために優遇税制などを設けたシェンチェン（深圳）などの地域を選びなさい。",
+    "options": ["シリコンバレー", "経済特区", "メガロポリス", "プランテーション", "自治区"],
+    "answerIndex": 1,
+    "explanation": "中国沿岸部に指定された「経済特区」に外国資本が集まり、工業発展の起爆剤となりました。"
+  },
+  {
+    "id": 42,
+    "unit": "アジア州",
+    "question": "安価で豊富な労働力を活かして世界中の電化製品や日用品を大量生産し、急速に台頭した中国を指した呼び名を選びなさい。",
+    "options": ["世界の食糧庫", "世界の金融街", "世界の工場", "世界の造船所", "世界の資源庫"],
+    "answerIndex": 2,
+    "explanation": "圧倒的な工業製品の輸出量を誇ったことから、中国は「世界の工場」と呼ばれました。"
+  },
+  {
+    "id": 43,
+    "unit": "アジア州",
+    "question": "タイ、ベトナム、インドネシアなど東南アジアの10カ国が結成している地域協力機構の名称（略称）を選びなさい。",
+    "options": ["EU", "OPEC", "ASEAN", "APEC", "AU"],
+    "answerIndex": 2,
+    "explanation": "東南アジア諸国連合の略称は「ASEAN（アセアン）」です。"
+  },
+  {
+    "id": 44,
+    "unit": "アジア州",
+    "question": "東南アジアでパーム油の原料となるアブラヤシや天然ゴムなどを大規模に単一栽培する農園を選びなさい。",
+    "options": ["混合農場", "プランテーション", "牧場", "オアシス農園", "棚田"],
+    "answerIndex": 1,
+    "explanation": "旧宗主国が開いた大規模な商業農園を「プランテーション」と呼びます。"
+  },
+  {
+    "id": 45,
+    "unit": "アジア州",
+    "question": "インド南部のバンガロール（ベンガルール）を中心に急成長し、世界トップレベルの人材を輩出している先進的産業を選びなさい。",
+    "options": ["造船業", "ICT（情報通信技術）産業", "石油化学工業", "繊維産業", "林業"],
+    "answerIndex": 1,
+    "explanation": "高い数学能力と英語力を生かし、インドではICT（情報通信技術）産業が躍進しました。"
+  },
+  {
+    "id": 46,
+    "unit": "アジア州",
+    "question": "サウジアラビアなどペルシャ湾沿岸諸国が豊富に産出し、日本が輸入の約9割を頼っているエネルギー資源を選びなさい。",
+    "options": ["石炭", "ウラン", "石油（原油）", "鉄鉱石", "銅鉱石"],
+    "answerIndex": 2,
+    "explanation": "中東・ペルシャ湾岸地域は世界有数の油田地帯で、日本の原油輸入先の大半を占めています。"
+  },
+  {
+    "id": 47,
+    "unit": "アジア州",
+    "question": "夏は海から湿った空気を運び豪雨をもたらし、冬は大陸から乾燥した冷たい空気を運ぶ季節風の呼び名を選びなさい。",
+    "options": ["偏西風", "貿易風", "モンスーン", "シロッコ", "エルニーニョ"],
+    "answerIndex": 2,
+    "explanation": "季節風（モンスーン）の乾湿のメリハリがアジアの農業や生活リズムを形作っています。"
+  },
+  {
+    "id": 48,
+    "unit": "ヨーロッパ州",
+    "question": "加盟国間でのパスポート審査なしの移動や関税の撤廃など、国境の壁を低くして統合を進めているヨーロッパの組織を選びなさい。",
+    "options": ["NATO", "EU（ヨーロッパ連合）", "国連安保理", "OECD", "ASEAN"],
+    "answerIndex": 1,
+    "explanation": "EU（ヨーロッパ連合）は27カ国（2026年現在）が加盟する強大な経済・政治統合体です。"
+  },
+  {
+    "id": 49,
+    "unit": "ヨーロッパ州",
+    "question": "EU加盟国の多くで共通通貨として導入され、為替手数料なしで決済ができる通貨を選びなさい。",
+    "options": ["ポンド", "ユーロ", "フラン", "ドル", "マルク"],
+    "answerIndex": 1,
+    "explanation": "共通通貨「ユーロ（Euro）」の導入により、物や人の移動がより円滑になりました。"
+  },
+  {
+    "id": 50,
+    "unit": "ヨーロッパ州",
+    "question": "ライン川やドナウ川のように、条約により沿岸国だけでなく外国船でも自由に航行することが認められている河川を選びなさい。",
+    "options": ["外来河川", "内陸河川", "国際河川", "人工水路", "運河"],
+    "answerIndex": 2,
+    "explanation": "複数の国をまたぎ、すべての国の商船が自由に通行できる川を「国際河川」と呼びます。"
+  },
+  {
+    "id": 51,
+    "unit": "ヨーロッパ州",
+    "question": "フランスやドイツなどで広く行われている、家畜の飼育と飼料作物・穀物の栽培を有機的に結びつけた農業形態を選びなさい。",
+    "options": ["地中海式農業", "酪農", "混合農業", "プランテーション", "遊牧"],
+    "answerIndex": 2,
+    "explanation": "家畜の糞尿を肥料にし、穀物栽培と畜産を組み合わせた農業を「混合農業」といいます。"
+  },
+  {
+    "id": 52,
+    "unit": "ヨーロッパ州",
+    "question": "デンマークやオランダ、アルプス山麓など、作物の栽培に適さない冷涼な土地で乳牛を育て乳製品を加工する農業を選びなさい。",
+    "options": ["酪農", "混合農業", "適地適作", "地中海式農業", "施設園芸"],
+    "answerIndex": 0,
+    "explanation": "乳牛を飼育し、牛乳、バター、チーズなどを生産する農業を「酪農」と呼びます。"
+  },
+  {
+    "id": 53,
+    "unit": "ヨーロッパ州",
+    "question": "地中海沿岸部において、乾燥する夏にオリーブやぶどうを育て、冬の雨を利用して小麦を育てる農業を選びなさい。",
+    "options": ["酪農", "混合農業", "地中海式農業", "焼畑農業", "ステップ農業"],
+    "answerIndex": 2,
+    "explanation": "地中海性気候の乾湿差に適合したこの農業様式を「地中海式農業」と呼びます。"
+  },
+  {
+    "id": 54,
+    "unit": "ヨーロッパ州",
+    "question": "ノルウェー西岸などに発達した、氷河によって削られた深いU字谷に海水が侵入して形成された細長い湾を選びなさい。",
+    "options": ["リアス海岸", "ラグーン（潟湖）", "砂州", "フィヨルド", "三角州"],
+    "answerIndex": 3,
+    "explanation": "氷河浸食谷に海水が入り込んだ地形を「フィヨルド」と呼びます。"
+  },
+  {
+    "id": 55,
+    "unit": "アフリカ州",
+    "question": "アフリカ大陸の北側をほぼ横断するように広がる、世界最大の砂漠を選びなさい。",
+    "options": ["カラハリ砂漠", "ナミブ砂漠", "サハラ砂漠", "ゴビ砂漠", "アタカマ砂漠"],
+    "answerIndex": 2,
+    "explanation": "サハラ砂漠はアメリカ合衆国に匹敵する広大さを持ち、アフリカ北部に広がっています。"
+  },
+  {
+    "id": 56,
+    "unit": "アフリカ州",
+    "question": "東アフリカのヴィクトリア湖周辺から発し、砂漠を貫流して地中海へ注ぐ世界最長の河川を選びなさい。",
+    "options": ["コンゴ川", "ニジェール川", "ナイル川", "アマゾン川", "ザンベジ川"],
+    "answerIndex": 2,
+    "explanation": "ナイル川は全長約6650kmに達し、世界でもっとも長い川として知られます。"
+  },
+  {
+    "id": 57,
+    "unit": "アフリカ州",
+    "question": "カカオ豆や原油など、特定の1〜2種類の産品輸出に国全体の経済が偏っている構造を選びなさい。",
+    "options": ["多角化経済", "モノカルチャー経済", "知識集約型経済", "市場経済", "社会主義経済"],
+    "answerIndex": 1,
+    "explanation": "特定作物の不作や国際相場の暴落で大打撃を受けやすい構造をモノカルチャー経済といいます。"
+  },
+  {
+    "id": 58,
+    "unit": "アフリカ州",
+    "question": "アフリカ南部などで多く産出し、EV用バッテリーや先端エレクトロニクスに欠かせない希少金属の呼び名を選びなさい。",
+    "options": ["貴金属", "ベースメタル", "レアメタル", "重金属", "非鉄金属"],
+    "answerIndex": 2,
+    "explanation": "コバルトや白金など埋蔵量が少なく抽出が困難な金属を「レアメタル（希少金属）」と総称します。"
+  },
+  {
+    "id": 59,
+    "unit": "アフリカ州",
+    "question": "アフリカの国々が結集し、域内の紛争解決や経済自立を目指して活動している大陸規模の地域統合組織を選びなさい。",
+    "options": ["OPEC", "AU（アフリカ連合）", "APEC", "EU", "ASEAN"],
+    "answerIndex": 1,
+    "explanation": "旧OAU（アフリカ統一機構）を発展させて創設されたのが「AU（アフリカ連合）」です。"
+  },
+  {
+    "id": 60,
+    "unit": "アフリカ州",
+    "question": "サハラ砂漠の南側境界に位置し、干ばつと過放牧・過剰伐採によって深刻な砂漠化に見舞われている半乾燥地域を選びなさい。",
+    "options": ["パンパ", "サヘル", "サバナ", "ステップ", "タイガ"],
+    "answerIndex": 1,
+    "explanation": "アラビア語で「岸辺」を意味するサヘル地域では、急速な砂漠化が飢餓を生む要因となっています。"
+  },
+  {
+    "id": 61,
+    "unit": "北アメリカ州",
+    "question": "ヨーロッパからの入植者が到来する以前からアメリカ大陸各地で自然と調和した暮らしを営んでいた先住民の総称を選びなさい。",
+    "options": ["アボリジニ", "マオリ", "ネイティブアメリカン", "ヒスパニック", "ゲルマン系"],
+    "answerIndex": 2,
+    "explanation": "かつてインディアンとも呼ばれた北米先住民族を、今日では「ネイティブアメリカン」と呼びます。"
+  },
+  {
+    "id": 62,
+    "unit": "北アメリカ州",
+    "question": "アメリカの大規模農業において、各地の降水量・気温・土壌条件に応じて作物を合理的に割り振って栽培する方式を選びなさい。",
+    "options": ["適地適作", "二期作", "輪作", "混合農業", "焼畑"],
+    "answerIndex": 0,
+    "explanation": "コーンベルトや小麦地帯のように自然条件に合致した作物を大規模栽培することを「適地適作」といいます。"
+  },
+  {
+    "id": 63,
+    "unit": "北アメリカ州",
+    "question": "アメリカのグレートプレーンズなどで見られる、回転する散水機によって上空から丸い幾何学模様に見える灌漑農業方式を選びなさい。",
+    "options": ["テラスライティング", "センターピボット", "棚田式", "点滴灌漑", "オアシス灌漑"],
+    "answerIndex": 1,
+    "explanation": "地下水をくみ上げ、巨大アームが円を描いて水を撒く仕組みを「センターピボット方式」と呼びます。"
+  },
+  {
+    "id": 64,
+    "unit": "北アメリカ州",
+    "question": "アメリカ西海岸のサンフランシスコ南部に位置し、世界的IT・半導体・新興企業が集結するハイテク拠点を選びなさい。",
+    "options": ["ラストベルト", "サンベルト", "シリコンバレー", "ウォール街", "メガロポリス"],
+    "answerIndex": 2,
+    "explanation": "スタンフォード大学などを核にIT企業が集まった地域を「シリコンバレー」と呼びます。"
+  },
+  {
+    "id": 65,
+    "unit": "北アメリカ州",
+    "question": "中南米からアメリカ合衆国へ移住し、近年アメリカの人口構成や選挙において急速に影響力を高めているスペイン語系の人々を選びなさい。",
+    "options": ["ネイティブアメリカン", "ヒスパニック", "アングロサクソン", "イヌイット", "スラブ系"],
+    "answerIndex": 1,
+    "explanation": "メキシコや中南米にルーツを持つスペイン語話者の移民とその子孫を「ヒスパニック」と呼びます。"
+  },
+  {
+    "id": 66,
+    "unit": "北アメリカ州",
+    "question": "アメリカとカナダの国境に連なり、水運と豊富な水資源でデトロイトなどの工業発展を支えた湖水群を選びなさい。",
+    "options": ["バイカル湖群", "五大湖", "カスピ海沿岸湖", "アフリカ大湖沼", "アンデス湖水群"],
+    "answerIndex": 1,
+    "explanation": "スペリオル湖、ミシガン湖、ヒューロン湖、エリー湖、オンタリオ湖の5つの湖を「五大湖」と呼びます。"
+  },
+  {
+    "id": 67,
+    "unit": "北アメリカ州",
+    "question": "北緯37度以南に位置し、温暖な気候を背景に航空宇宙産業や電子工業などが目覚ましく発展したアメリカ南部の地域を選びなさい。",
+    "options": ["ラストベルト", "コーンベルト", "サンベルト", "スノーベルト", "シリコンバレー"],
+    "answerIndex": 2,
+    "explanation": "日照時間が長い北緯37度以南の南部地域を「サンベルト（太陽の帯）」と呼びます。"
+  },
+  {
+    "id": 68,
+    "unit": "南アメリカ州",
+    "question": "流域に「セルバ」と呼ばれる広大な熱帯雨林を抱え、世界第1位の流域面積と水量を誇る大河を選びなさい。",
+    "options": ["ナイル川", "ミシシッピ川", "アマゾン川", "パラナ川", "ラプラタ川"],
+    "answerIndex": 2,
+    "explanation": "南米赤道直下を流れるアマゾン川は、地球上の熱帯林の大部分をその流域に含んでいます。"
+  },
+  {
+    "id": 69,
+    "unit": "南アメリカ州",
+    "question": "南アメリカ大陸の西海岸沿いを南北約7,500kmにわたって連なる、高く険しい新期造山帯の山脈を選びなさい。",
+    "options": ["ロッキー山脈", "アンデス山脈", "アルプス山脈", "アパラチア山脈", "グレートディバイディング山脈"],
+    "answerIndex": 1,
+    "explanation": "南米太平洋岸にそびえるアンデス山脈は世界最長の連峰です。"
+  },
+  {
+    "id": 70,
+    "unit": "南アメリカ州",
+    "question": "ブラジルにおいて、豊富に採れるサトウキビの搾りかすや糖蜜を発酵させて生産されている自動車燃料を選びなさい。",
+    "options": ["重油", "バイオエタノール", "LNG（液化天然ガス）", "LPガス", "バイオディーゼル"],
+    "answerIndex": 1,
+    "explanation": "ブラジルはサトウキビ由来のバイオエタノール燃料の利用率が極めて高い国です。"
+  },
+  {
+    "id": 71,
+    "unit": "南アメリカ州",
+    "question": "20世紀初頭から多くの日本人移民が渡り、現在世界最大規模の日系人社会が築かれている南米の国を選びなさい。",
+    "options": ["アルゼンチン", "チリ", "ブラジル", "コロンビア", "ベネズエラ"],
+    "answerIndex": 2,
+    "explanation": "笠戸丸をはじめとする移民船で渡航した人々の子孫が暮らすブラジルは、最大の在外日系人コミュニティを持ちます。"
+  },
+  {
+    "id": 72,
+    "unit": "南アメリカ州",
+    "question": "アルゼンチン東部に広がる肥沃な温帯草原で、大規模な小麦栽培や肉牛の放牧が行われている地域を選びなさい。",
+    "options": ["セルバ", "パンパ", "カンポ", "リャノ", "サヘル"],
+    "answerIndex": 1,
+    "explanation": "アルゼンチンの広大な平坦草原「パンパ」は、同国の世界的な農業・畜産拠点です。"
+  },
+  {
+    "id": 73,
+    "unit": "南アメリカ州",
+    "question": "リオデジャネイロやサンパウロなどの斜面地に見られる、急激な都市化により形成された貧困街（スラム）の呼称を選びなさい。",
+    "options": ["スラム街", "ファベーラ", "バラック", "バリオ", "タウンシップ"],
+    "answerIndex": 1,
+    "explanation": "ブラジルの大都市郊外や斜面に広がる無秩序な密集スラム街を「ファベーラ」と呼びます。"
+  },
+  {
+    "id": 74,
+    "unit": "南アメリカ州",
+    "question": "アマゾン奥地で進む道路建設や農地開墾、違法伐採によって危惧されている世界的な環境破壊を選びなさい。",
+    "options": ["砂漠化", "熱帯雨林（熱帯林）の急減", "オゾン層破壊", "酸性雨による立ち枯れ", "永久凍土の崩壊"],
+    "answerIndex": 1,
+    "explanation": "「地球の肺」とも称されるアマゾン流域の熱帯林減少は、CO2吸収源の喪失や生態系破壊として世界問題です。"
+  },
+  {
+    "id": 75,
+    "unit": "オセアニア州",
+    "question": "ディジュリドゥやブーメランなどの道具を生み出し、オーストラリアで自然と共生してきた先住民族を選びなさい。",
+    "options": ["マオリ", "アボリジニ", "イヌイット", "インディオ", "サミ"],
+    "answerIndex": 1,
+    "explanation": "オーストラリアの先住民族は「アボリジニ（オーストラリア先住民）」です。"
+  },
+  {
+    "id": 76,
+    "unit": "オセアニア州",
+    "question": "ラグビーチーム「オールブラックス」が試合前に披露する戦いの舞（ハカ）の文化を継承する、ニュージーランドの先住民を選びなさい。",
+    "options": ["アボリジニ", "マオリ", "ポリネシアン", "メラネシアン", "イヌイット"],
+    "answerIndex": 1,
+    "explanation": "ニュージーランドの先住民「マオリ」の言語や伝統儀式ハカは、国の文化として重んじられています。"
+  },
+  {
+    "id": 77,
+    "unit": "オセアニア州",
+    "question": "オーストラリアがかつてアジア系などの有色人種移民を厳しく制限していたが、1970年代に撤廃された政策を選びなさい。",
+    "options": ["アパルトヘイト", "白豪主義", "外国人排斥令", "隔離定住法", "同化政策"],
+    "answerIndex": 1,
+    "explanation": "白人主体の国を保とうとした「白豪主義」を改め、現在は多様な文化を認める多文化社会へ転換しました。"
+  },
+  {
+    "id": 78,
+    "unit": "オセアニア州",
+    "question": "オーストラリアの鉄鉱石や石炭の鉱山で用いられる、地面を階段状に直接削り取って採掘する効率的な方式を選びなさい。",
+    "options": ["坑道掘り", "水力採掘", "露天掘り", "深海掘削", "発破工法"],
+    "answerIndex": 2,
+    "explanation": "地下トンネルを掘らず地表から直接重機で削る採掘方法を「露天掘り（オープンピット）」といいます。"
+  },
+  {
+    "id": 79,
+    "unit": "オセアニア州",
+    "question": "オーストラリア大陸の中央から西側にかけて、面積の大部分を覆っている気候帯を選びなさい。",
+    "options": ["熱帯", "温帯", "乾燥帯", "寒帯", "高山帯"],
+    "answerIndex": 2,
+    "explanation": "オーストラリア大陸内陸部は降水が極めて少なく、広大な砂漠やステップが広がる乾燥帯です。"
+  },
+  {
+    "id": 80,
+    "unit": "オセアニア州",
+    "question": "日本（北半球）が真冬の「1月」を迎えているとき、シドニー（南半球）の季節はどうなっているか選びなさい。",
+    "options": ["春", "真夏", "真冬", "秋", "雨季の極寒期"],
+    "answerIndex": 1,
+    "explanation": "南半球は北半球と太陽の照射角が逆になるため、北半球が冬のときは真夏になります。"
+  },
+  {
+    "id": 81,
+    "unit": "身近な地域の調査",
+    "question": "国土の正確な測量を行い、2万5千分の1などの公式な基本地形図を刊行している国土交通省の機関を選びなさい。",
+    "options": ["気象庁", "国土地理院", "観光庁", "海上保安庁", "日本地図学会"],
+    "answerIndex": 1,
+    "explanation": "日本の国家測量機関であり地形図を発行するのは「国土地理院」です。"
+  },
+  {
+    "id": 82,
+    "unit": "身近な地域の調査",
+    "question": "「5万分の1」の縮尺地形図において、地図上で「2cm」ある区間の実際の距離を計算し、正しいものを選びなさい。",
+    "options": ["500m", "1km", "2km", "2.5km", "5km"],
+    "answerIndex": 1,
+    "explanation": "2cm × 50,000 ＝ 100,000cm ＝ 1,000m ＝ 1km となります。"
+  },
+  {
+    "id": 83,
+    "unit": "身近な地域の調査",
+    "question": "地形図の等高線同士の間隔が「非常に広く離れている」場所の実際の地形の特徴を選びなさい。",
+    "options": ["断崖絶壁である", "傾斜が極めて緩やか（または平坦）である", "険しい岩山である", "深い谷が刻まれている", "山頂の直下である"],
+    "answerIndex": 1,
+    "explanation": "等高線は標高差を表すため、線と線の間隔が広いほど傾斜がなだらかな平地や緩斜面になります。"
+  },
+  {
+    "id": 84,
+    "unit": "身近な地域の調査",
+    "question": "地図記号において、二重丸の中に「文」の漢字が描かれている記号が表す施設を選びなさい。",
+    "options": ["小学校・中学校", "高等学校", "大学・高等専門学校", "図書館", "区役所"],
+    "answerIndex": 1,
+    "explanation": "丸に「文」は小中学校、二重丸（または外側に丸枠があるもの）に「文」は高等学校を表します。"
+  },
+  {
+    "id": 85,
+    "unit": "身近な地域の調査",
+    "question": "洪水時の浸水想定区域や土砂災害警戒区域、指定避難所などを住民に周知するために自治体が作成する防災地図を選びなさい。",
+    "options": ["都市計画図", "地価公示マップ", "ハザードマップ（防災マップ）", "等高線段彩図", "鳥瞰図"],
+    "answerIndex": 2,
+    "explanation": "自然災害の被害想定範囲や避難経路・避難場所をまとめた地図を「ハザードマップ」といいます。"
+  },
+  {
+    "id": 86,
+    "unit": "身近な地域の調査",
+    "question": "地域の野外観察（フィールドワーク）を実施する前の「事前調査」の段階で行う活動としてもっとも適切なものを選びなさい。",
+    "options": [
+      "住民へのアンケート用紙を回収して集計する",
+      "報告書や壁新聞を作成して発表する",
+      "地形図や過去の統計資料・文献を調べ仮説を立てる",
+      "現地で建物の写真を撮影してまわる",
+      "調査結果の反省会を開く"
+    ],
+    "answerIndex": 2,
+    "explanation": "事前調査では、地形図・古地図・統計などの既存資料にあたり、現地で確かめるべき課題を明確にします。"
+  },
+  {
+    "id": 87,
+    "unit": "日本の地域的特色",
+    "question": "日本の国土面積（約37.8万平方km）の大きさに関する説明として、正しいものを選びなさい。",
+    "options": [
+      "ドイツやイギリスの国土面積よりもやや広い",
+      "オーストラリアの面積とほぼ同等である",
+      "世界第5位の広大な国土を持つ",
+      "アメリカ合衆国の約半分程度の広さである",
+      "シンガポールの約2倍程度の広さである"
+    ],
+    "answerIndex": 0,
+    "explanation": "日本の面積（約38万㎢）は、イギリス（約24万㎢）やドイツ（約36万㎢）よりやや広いです。"
+  },
+  {
+    "id": 88,
+    "unit": "日本の地域的特色",
+    "question": "日本列島を構成する主要4島（本州・北海道・九州・四国）のうち、面積が「第2位」に大きい島を選びなさい。",
+    "options": ["本州", "北海道", "九州", "四国", "沖縄本島"],
+    "answerIndex": 1,
+    "explanation": "面積順は、第1位：本州、第2位：北海道、第3位：九州、第4位：四国 です。"
+  },
+  {
+    "id": 89,
+    "unit": "日本の地域的特色",
+    "question": "日本国が主張する領域において、もっとも北に位置する北方領土の島を選びなさい。",
+    "options": ["色丹島", "国後島", "択捉島", "歯舞群島", "利尻島"],
+    "answerIndex": 2,
+    "explanation": "日本の最北端は北方領土の「択捉島（えとろふとう）」です。"
+  },
+  {
+    "id": 90,
+    "unit": "日本の地域的特色",
+    "question": "日本最南端に位置し、水没して領海や排他的経済水域を失わないよう消波ブロック等で保全されているサンゴ礁の島を選びなさい。",
+    "options": ["南鳥島", "沖ノ鳥島", "与那国島", "硫黄島", "波照間島"],
+    "answerIndex": 1,
+    "explanation": "日本最南端は「沖ノ鳥島」です。満潮時にも水没しないようコンクリート等で保護されています。"
+  },
+  {
+    "id": 91,
+    "unit": "日本の地域的特色",
+    "question": "日本最東端に位置し、本州から約1,800km離れた孤島で広大なEEZを支えている島を選びなさい。",
+    "options": ["択捉島", "沖ノ鳥島", "南鳥島", "父島", "与那国島"],
+    "answerIndex": 2,
+    "explanation": "日本最東端は小笠原諸島に属する「南鳥島」です。"
+  },
+  {
+    "id": 92,
+    "unit": "日本の地域的特色",
+    "question": "日本最西端に位置し、晴れた日には西の水平線上に台湾の山並みを望むことができる島を選びなさい。",
+    "options": ["石垣島", "宮古島", "与那国島", "西表島", "対馬"],
+    "answerIndex": 2,
+    "explanation": "日本最西端は沖縄県の「与那国島」です。"
+  },
+  {
+    "id": 93,
+    "unit": "日本の地域的特色",
+    "question": "第二次世界大戦末期にソ連によって占拠され、現在もロシアとの間で帰属をめぐる交渉が続いている「北方領土」の4島の組み合わせを選びなさい。",
+    "options": [
+      "択捉島・国後島・色丹島・歯舞群島",
+      "択捉島・得撫島・色丹島・千島列島",
+      "国後島・利尻島・礼文島・歯舞群島",
+      "色丹島・奥尻島・択捉島・天売島",
+      "歯舞群島・国後島・対馬・択捉島"
+    ],
+    "answerIndex": 0,
+    "explanation": "北方四島とは「択捉島、国後島、色丹島、歯舞群島」を指します。"
+  },
+  {
+    "id": 94,
+    "unit": "日本の地域的特色",
+    "question": "国家の主権が完全に及ぶ領空の範囲として正しい説明を選びなさい。",
+    "options": [
+      "公海の上空全域",
+      "領土と領海の上空",
+      "排他的経済水域（EEZ）を含むすべての海域の上空",
+      "成層圏より上空の宇宙空間すべて",
+      "海岸線から200海里以内の上空"
+    ],
+    "answerIndex": 1,
+    "explanation": "領空とは「領土」および「領海（12海里）」の真上にある大気圏内の空域を指します。"
+  },
+  {
+    "id": 95,
+    "unit": "日本の地域的特色",
+    "question": "沿岸国が水産物や海底鉱物資源などの天然資源を独占的に開発・管理できる、基線から200海里以内の海域を選びなさい。",
+    "options": ["領海", "接続水域", "排他的経済水域（EEZ）", "公海", "内水"],
+    "answerIndex": 2,
+    "explanation": "沿岸から200海里（約370km）までの水域で経済的主権が認められるのが排他的経済水域です。"
+  },
+  {
+    "id": 96,
+    "unit": "日本の地域的特色",
+    "question": "日本全国の47都道府県のうち、「府」が置かれている自治体の正しい組み合わせを選びなさい。",
+    "options": [
+      "東京都・大阪府",
+      "京都府・大阪府",
+      "京都府・兵庫県",
+      "愛知県・京都府",
+      "大阪府・神奈川県"
+    ],
+    "answerIndex": 1,
+    "explanation": "1都（東京）、1道（北海道）、2府（京都府・大阪府）、43県で構成されています。"
+  },
+  {
+    "id": 97,
+    "unit": "日本の地域的特色",
+    "question": "日本列島の八地方区分において、鳥取県・島根県・岡山県・広島県・山口県の5県が属する地方を選びなさい。",
+    "options": ["四国地方", "近畿地方", "九州地方", "中国地方", "中部地方"],
+    "answerIndex": 3,
+    "explanation": "この5県は「中国地方（山陽・山陰）」に分類されます。"
+  },
+  {
+    "id": 98,
+    "unit": "日本の地域的特色",
+    "question": "スイスやモンゴル、ボリビアのように、領土のどの部分も海に接していない国の分類呼称を選びなさい。",
+    "options": ["島国", "内陸国", "海洋国", "半島国", "沿岸国"],
+    "answerIndex": 1,
+    "explanation": "海岸線を持たず海に面していない国を「内陸国」といいます。"
+  },
+  {
+    "id": 99,
+    "unit": "日本の地域的特色",
+    "question": "新潟県の糸魚川から静岡県を結ぶ構造線を西縁とし、本州を地質学的に東北日本と西南日本に分ける大断層地帯を選びなさい。",
+    "options": ["中央構造線", "日本海溝", "フォッサマグナ", "丹那断層", "飛騨山脈"],
+    "answerIndex": 2,
+    "explanation": "フォッサマグナ（大きな溝）は日本列島の中央部を横断する巨大な地溝帯です。"
+  },
+  {
+    "id": 100,
+    "unit": "日本の地域的特色",
+    "question": "本州中央部にそびえる「日本の屋根」と呼ばれる3つの山脈のうち、もっとも北側に位置する飛騨山脈の別称を選びなさい。",
+    "options": ["北アルプス", "中央アルプス", "南アルプス", "奥羽山脈", "越後山脈"],
+    "answerIndex": 0,
+    "explanation": "飛騨山脈＝北アルプス、木曽山脈＝中央アルプス、赤石山脈＝南アルプス と呼ばれます。"
+  }
+];
+
+    // ==========================================
+    // 2. アプリ制御
+    // ==========================================
+    const QUESTION_COUNT = 10;
+    let currentQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let isAnswered = false;
+
+    window.onload = () => {
+      const highScore = localStorage.getItem('geographyQuizHighScore_Advanced') || 0;
+      document.getElementById('high-score-display').innerText = `過去の最高得点: ${highScore}点`;
+    };
+
+    function startQuiz() {
+      // 100問から完全ランダムに10問抽出
+      currentQuestions = [...allQuizData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
+      
+      currentQuestionIndex = 0;
+      score = 0;
+      
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('quiz-screen').classList.remove('hidden');
+      
+      showQuestion();
+    }
+
+    function showQuestion() {
+      isAnswered = false;
+      document.getElementById('explanation-box').classList.add('hidden');
+      
+      const q = currentQuestions[currentQuestionIndex];
+      document.getElementById('progress').innerText = `問題 ${currentQuestionIndex + 1} / ${currentQuestions.length} 【${q.unit}】`;
+      document.getElementById('question-text').innerText = q.question;
+      
+      const optionsContainer = document.getElementById('options-container');
+      optionsContainer.innerHTML = '';
+      
+      q.options.forEach((option, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.innerText = option;
+        btn.onclick = () => checkAnswer(index, btn);
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(selectedIndex, selectedBtn) {
+      if (isAnswered) return;
+      isAnswered = true;
+      
+      const q = currentQuestions[currentQuestionIndex];
+      const buttons = document.getElementById('options-container').querySelectorAll('button');
+      
+      buttons.forEach((btn, index) => {
+        btn.disabled = true;
+        if (index === q.answerIndex) {
+          btn.classList.add('correct-btn');
+        } else if (index === selectedIndex) {
+          btn.classList.add('wrong-btn');
+        }
+      });
+
+      const title = document.getElementById('result-title');
+      if (selectedIndex === q.answerIndex) {
+        title.innerText = "⭕ 正解！";
+        title.style.color = "#2e7d32";
+        score++;
+      } else {
+        title.innerText = "❌ 不正解...";
+        title.style.color = "#d32f2f";
+      }
+
+      document.getElementById('explanation-text').innerText = q.explanation;
+      document.getElementById('explanation-box').classList.remove('hidden');
+    }
+
+    function nextQuestion() {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < currentQuestions.length) {
+        showQuestion();
+      } else {
+        finishQuiz();
+      }
+    }
+
+    // 満点の派手な演出
+    function triggerPerfectCelebration() {
+      const celebration = document.getElementById('perfect-celebration');
+      celebration.classList.remove('hidden');
+      document.getElementById('result-heading').classList.add('hidden');
+
+      // 1. 初動の特大バースト（中央から噴出）
+      confetti({
+        particleCount: 130,
+        spread: 110,
+        origin: { y: 0.6 },
+        colors: ['#ffd700', '#2e7d32', '#00b0ff', '#ff3d00', '#ffffff']
+      });
+
+      // 2. 左右両端からの打ち上げキャノン（約3.5秒間持続）
+      const duration = 3500;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 4,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: 0.75 },
+          colors: ['#ffd700', '#4caf50', '#ffffff']
+        });
+        confetti({
+          particleCount: 4,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: 0.75 },
+          colors: ['#ffd700', '#29b6f6', '#ffffff']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
+
+    function finishQuiz() {
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.remove('hidden');
+      
+      document.getElementById('final-score').innerText = `${currentQuestions.length}問中 ${score}問正解！`;
+
+      const storageKey = 'geographyQuizHighScore_Advanced';
+      const currentHighScore = parseInt(localStorage.getItem(storageKey) || 0);
+      const msgElement = document.getElementById('new-high-score-msg');
+      
+      if (score > currentHighScore) {
+        localStorage.setItem(storageKey, score);
+        msgElement.innerText = "🎉 ハイスコア更新！";
+        msgElement.classList.remove('hidden');
+      } else {
+        msgElement.classList.add('hidden');
+      }
+
+      // 満点判定
+      if (score === currentQuestions.length) {
+        triggerPerfectCelebration();
+      } else {
+        document.getElementById('perfect-celebration').classList.add('hidden');
+        document.getElementById('result-heading').classList.remove('hidden');
+      }
+    }
+
+    function resetQuiz() {
+      const storageKey = 'geographyQuizHighScore_Advanced';
+      const highScore = localStorage.getItem(storageKey) || 0;
+      document.getElementById('high-score-display').innerText = `過去の最高得点: ${highScore}点`;
+      
+      document.getElementById('perfect-celebration').classList.add('hidden');
+      document.getElementById('result-heading').classList.remove('hidden');
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
